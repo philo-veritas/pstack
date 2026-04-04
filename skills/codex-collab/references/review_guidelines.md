@@ -57,20 +57,17 @@
 }
 ```
 
-## 构建 review prompt 的模板
+## 使用 `codex review` 审查
 
-```
-请以代码审查者的身份审查以下改动。
+审查内容由 `codex review` 自动获取（未提交改动、分支差异或指定提交），无需手动嵌入 diff。自定义 prompt 只需写审查要求：
 
-审查范围：
-{git diff 输出或改动描述}
+```bash
+# 使用默认审查标准
+codex review --uncommitted
 
-审查要求：
-- 只报告本次改动引入的、原作者会想修复的实际 bug
-- 忽略琐碎的风格问题（除非影响可读性或违反项目规范）
-- 每个问题标注优先级 [P0]-[P3]
-- 如果没有值得标记的问题，返回空 findings 数组
-- 最后给出整体正确性判断
+# 传入自定义审查要求
+codex review --uncommitted "只报告本次改动引入的实际 bug，忽略琐碎风格问题，每个问题标注优先级 [P0]-[P3]，按 JSON 格式输出"
 
-按 JSON 格式输出（findings 数组 + overall_correctness + overall_explanation）。
+# 对比分支
+codex review --base main "关注安全性和向后兼容性"
 ```
