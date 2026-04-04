@@ -33,41 +33,17 @@
 - `[P2]` — 普通，后续修复
 - `[P3]` — 低优，有则更好
 
-## 期望输出格式
-
-要求 codex 按以下 JSON 格式输出：
-
-```json
-{
-  "findings": [
-    {
-      "title": "[P1] 简要描述",
-      "body": "为什么是问题；涉及的文件/行/函数",
-      "confidence_score": 0.85,
-      "priority": 1,
-      "code_location": {
-        "absolute_file_path": "/path/to/file",
-        "line_range": {"start": 10, "end": 15}
-      }
-    }
-  ],
-  "overall_correctness": "patch is correct",
-  "overall_explanation": "整体评估说明",
-  "overall_confidence_score": 0.9
-}
-```
-
 ## 使用 `codex review` 审查
 
-审查内容由 `codex review` 自动获取（未提交改动、分支差异或指定提交），无需手动嵌入 diff。自定义 prompt 只需写审查要求：
+通过 `scripts/codex_review.py` 包装脚本调用，自动获取 diff 并过滤冗余输出，只返回审查结论。自定义 prompt 只需写审查要求：
 
 ```bash
 # 使用默认审查标准
-codex review --uncommitted
+python <skill-dir>/scripts/codex_review.py --uncommitted
 
 # 传入自定义审查要求
-codex review --uncommitted "只报告本次改动引入的实际 bug，忽略琐碎风格问题，每个问题标注优先级 [P0]-[P3]，按 JSON 格式输出"
+python <skill-dir>/scripts/codex_review.py --uncommitted "只报告本次改动引入的实际 bug，忽略琐碎风格问题，每个问题标注优先级 [P0]-[P3]"
 
 # 对比分支
-codex review --base main "关注安全性和向后兼容性"
+python <skill-dir>/scripts/codex_review.py --base main "关注安全性和向后兼容性"
 ```
