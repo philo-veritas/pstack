@@ -96,14 +96,30 @@ The original Superpowers plugin namespaced every skill's artifacts under `docs/s
 
 `skills/brainstorming/` → `skills/spark/`. Matches the `name:` field in the frontmatter and keeps the install path `~/.claude/skills/spark/` distinct from anyone running the original `superpowers:brainstorming`.
 
+#### 9. Visual-companion runtime path bug fixed
+
+`SKILL.md` pointed at `skills/brainstorming/visual-companion.md` — the pre-rename directory, which no longer exists at the install path. Changed to a relative `visual-companion.md` (resolved against the SKILL.md directory), so the guide actually loads when the user accepts the companion.
+
+#### 10. Remaining `superpowers` namespace removed from the visual companion
+
+Point 7 only moved the spec path. The companion's runtime session directory and browser header still carried the old branding; completed the migration:
+
+- Persistent session dir `<project>/.superpowers/brainstorm/` → `<project>/.spark/brainstorm/` (`start-server.sh`, `stop-server.sh`, `visual-companion.md`); the `.gitignore` hint follows.
+- Browser header changed from a link to `obra/superpowers` titled "Superpowers Brainstorming" → plain "Spark Brainstorming" (`frame-template.html`). MIT attribution still lives in this README and `LICENSE`.
+
+Internal-only identifiers (`BRAINSTORM_*` env vars, the `/tmp/brainstorm` default, `window.brainstorm`, the graphviz graph name) were left untouched — renaming them is churn with no user-visible benefit.
+
+#### 11. Orphaned subagent reviewer template removed
+
+`spec-document-reviewer-prompt.md` was carried over from the original but nothing referenced it: spark's checklist step 7 does an **inline** self-review, not a subagent dispatch. The file was dead weight (and still pointed at the old `docs/superpowers/specs/` path), so it was deleted.
+
 ### Preserved as-is
 
 - 9-step checklist structure, the `<HARD-GATE>` block, the "This Is Too Simple To Need A Design" anti-pattern
 - Graphviz process flow (only the terminal node was retargeted)
 - Visual companion feature — browser-based mockup viewer in `scripts/` and `visual-companion.md`
-- Spec self-review loop (placeholder scan, internal consistency, scope, ambiguity)
+- Spec self-review loop (placeholder scan, internal consistency, scope, ambiguity) — done inline, not via subagent
 - All key principles: one question at a time, multiple choice preferred, YAGNI, explore alternatives, incremental validation, be flexible
-- The subagent spec reviewer prompt template (`spec-document-reviewer-prompt.md`)
 
 ## License
 
