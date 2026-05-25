@@ -1,0 +1,20 @@
+{
+  "skill_name": "codex-review-fix-loop",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "在 /tmp/sample-api 项目里执行 review & evaluate & fix loop。初始改动意向 X 是：修复用户登录回调在缺少 state 参数时返回 500 的问题。请 review uncommitted changes，只修复与这个意向相关的 codex findings，直到 review 没有 findings。",
+      "expected_output": "Agent should identify project path and X, run codex_review.py with --cd /tmp/sample-api --uncommitted, evaluate each finding against X, fix only related findings, rerun review until clean, and report review rounds plus verification."
+    },
+    {
+      "id": 2,
+      "prompt": "项目路径是 /tmp/billing-service。X：这次改动只是给 invoice export 增加 CSV header。请循环 codex review 并修复 findings；如果 review 提到历史上的 retry backoff 问题，不要修它，只说明它和 X 无关。",
+      "expected_output": "Agent should keep the loop scoped to CSV header changes, classify retry backoff findings as unrelated, avoid broad fixes, and stop only when findings are clean or remaining findings are unrelated."
+    },
+    {
+      "id": 3,
+      "prompt": "当前目录就是项目。刚才我们给 codex_review.py 增加了 --cd 参数，现在跑 review/evaluate/fix loop。如果某个 finding 的修复需要改变 --cd 的参数语义或兼容性，请先停下来问我，不要直接决定。",
+      "expected_output": "Agent should infer X from the conversation as adding --cd to codex_review.py, treat cwd as project path, review uncommitted changes, fix clear wrapper issues, and pause for user input if a finding requires changing argument semantics or compatibility beyond inferred X."
+    }
+  ]
+}
