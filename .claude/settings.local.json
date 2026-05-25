@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(codex review:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Read(/Users/philoveritas/.claude/skills/**)"
     ]
   }
 }
