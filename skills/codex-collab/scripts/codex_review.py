@@ -123,9 +123,9 @@ def main() -> None:
     cmd = ["codex", "review"] + passthrough_args
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, cwd=cwd)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=900, cwd=cwd)
     except subprocess.TimeoutExpired:
-        print("Error: codex review 超时（10 分钟）", file=sys.stderr)
+        print("Error: codex review 超时（15 分钟）", file=sys.stderr)
         sys.exit(1)
     except FileNotFoundError:
         print("Error: 未找到 codex 命令", file=sys.stderr)
