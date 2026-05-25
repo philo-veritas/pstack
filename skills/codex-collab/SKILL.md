@@ -154,6 +154,9 @@ codex review 通常需要 2-5 分钟。调用时务必设置 Bash timeout 为 30
 # 审查未提交改动（staged + unstaged + untracked）
 python <skill-dir>/scripts/codex_review.py --uncommitted
 
+# 审查指定项目的未提交改动
+python <skill-dir>/scripts/codex_review.py --cd /path/to/repo --uncommitted
+
 # 审查未提交改动，附加自定义审查要求
 python <skill-dir>/scripts/codex_review.py --uncommitted "只关注安全性和并发问题"
 

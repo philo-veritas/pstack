@@ -6,6 +6,7 @@ codex review 会输出 2000+ 行的工具执行日志、diff 和中间推理，
 摘要和 "Full review comments:" 区块，大幅减少 token 消耗。
 
 用法（参数直接透传给 codex review）：
+    python codex_review.py --cd /path/to/repo --uncommitted
     python codex_review.py --uncommitted
     python codex_review.py --uncommitted "只关注安全性"
     python codex_review.py --base main
@@ -14,6 +15,7 @@ codex review 会输出 2000+ 行的工具执行日志、diff 和中间推理，
 
 from __future__ import annotations
 
+from pathlib import Path
 import subprocess
 import sys
 
@@ -21,6 +23,39 @@ import sys
 _REVIEW_FALLBACK = "Reviewer failed to output a response."
 
 _REVIEW_HEADERS = ("Full review comments:", "Review comment:")
+
+
+def _parse_wrapper_args(argv: list[str]) -> tuple[str | None, list[str]]:
+    """Extract wrapper-only args, leaving codex review args untouched."""
+    cd: str | None = None
+    passthrough: list[str] = []
+    i = 0
+
+    while i < len(argv):
+        arg = argv[i]
+        if arg == "--cd":
+            if i + 1 >= len(argv):
+                print("Error: --cd 需要目录参数", file=sys.stderr)
+                sys.exit(2)
+            cd = argv[i + 1]
+            i += 2
+            continue
+        if arg.startswith("--cd="):
+            cd = arg.split("=", 1)[1]
+            i += 1
+            continue
+
+        passthrough.append(arg)
+        i += 1
+
+    if cd is not None:
+        repo_dir = Path(cd).expanduser()
+        if not repo_dir.is_dir():
+            print(f"Error: --cd 目录不存在: {cd}", file=sys.stderr)
+            sys.exit(2)
+        cd = str(repo_dir)
+
+    return cd, passthrough
 
 
 def _deduplicate(text: str) -> str:
@@ -84,10 +119,11 @@ def extract_review(output: str) -> str:
 
 
 def main() -> None:
-    cmd = ["codex", "review"] + sys.argv[1:]
+    cwd, passthrough_args = _parse_wrapper_args(sys.argv[1:])
+    cmd = ["codex", "review"] + passthrough_args
 
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, cwd=cwd)
     except subprocess.TimeoutExpired:
         print("Error: codex review 超时（10 分钟）", file=sys.stderr)
         sys.exit(1)
