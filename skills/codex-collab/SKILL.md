@@ -157,9 +157,6 @@ python <skill-dir>/scripts/codex_review.py --uncommitted
 # 审查指定项目的未提交改动
 python <skill-dir>/scripts/codex_review.py --cd /path/to/repo --uncommitted
 
-# 审查未提交改动，附加自定义审查要求
-python <skill-dir>/scripts/codex_review.py --uncommitted "只关注安全性和并发问题"
-
 # 审查相对于某分支的改动
 python <skill-dir>/scripts/codex_review.py --base main
 
@@ -167,7 +164,7 @@ python <skill-dir>/scripts/codex_review.py --base main
 python <skill-dir>/scripts/codex_review.py --commit <sha>
 ```
 
-所有参数直接透传给 `codex review`，可通过 prompt 参数传入自定义审查要求。
+所有参数直接透传给 `codex review`。当前 `codex review` 版本的 help 可能仍显示可传 prompt，但实测 `--uncommitted` 与 positional prompt 不能同用；审查未提交改动时不要追加自定义 prompt。
 
 **`codex review` vs `codex exec` 的区别：**
 - `codex review`（通过 `scripts/codex_review.py` 调用）是专用审查命令，自动获取 diff 内容，输出已过滤

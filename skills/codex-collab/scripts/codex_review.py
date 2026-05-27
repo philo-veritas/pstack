@@ -8,9 +8,10 @@ codex review 会输出 2000+ 行的工具执行日志、diff 和中间推理，
 用法（参数直接透传给 codex review）：
     python codex_review.py --cd /path/to/repo --uncommitted
     python codex_review.py --uncommitted
-    python codex_review.py --uncommitted "只关注安全性"
     python codex_review.py --base main
     python codex_review.py --commit <sha>
+
+注意：当前 codex review 版本不允许 --uncommitted 与 positional prompt 同用。
 """
 
 from __future__ import annotations

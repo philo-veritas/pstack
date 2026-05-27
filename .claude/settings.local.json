@@ -3,7 +3,9 @@
     "allow": [
       "Bash(codex review:*)",
       "Bash(python:*)",
-      "Read(/Users/philoveritas/.claude/skills/**)"
+      "Read(/Users/philoveritas/.claude/skills/**)",
+      "Read(/tmp/**)",
+      "Read(/Users/philoveritas/.claude/plugins/cache/anthropic-agent-skills/document-skills/690f15cac7f7/skills/skill-creator/**)"
     ]
   }
 }

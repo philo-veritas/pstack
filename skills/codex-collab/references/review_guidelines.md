@@ -35,14 +35,11 @@
 
 ## 使用 `codex review` 审查
 
-通过 `scripts/codex_review.py` 包装脚本调用，自动获取 diff 并过滤冗余输出，只返回审查结论。自定义 prompt 只需写审查要求：
+通过 `scripts/codex_review.py` 包装脚本调用，自动获取 diff 并过滤冗余输出，只返回审查结论。当前 `codex review` 版本的 help 可能仍显示可传 prompt，但实测 `--uncommitted` 与 positional prompt 不能同用；审查未提交改动时只传 `--uncommitted`。
 
 ```bash
 # 使用默认审查标准
 python <skill-dir>/scripts/codex_review.py --uncommitted
-
-# 传入自定义审查要求
-python <skill-dir>/scripts/codex_review.py --uncommitted "只报告本次改动引入的实际 bug，忽略琐碎风格问题，每个问题标注优先级 [P0]-[P3]"
 
 # 对比分支
 python <skill-dir>/scripts/codex_review.py --base main "关注安全性和向后兼容性"

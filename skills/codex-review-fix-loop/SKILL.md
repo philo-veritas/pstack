@@ -46,9 +46,10 @@ description: |
 ```bash
 python scripts/codex_review.py \
   --cd <project-path> \
-  --uncommitted \
-  "只报告本次未提交改动引入的实际 bug，忽略琐碎风格问题。每个问题标注优先级 [P0]-[P3]。"
+  --uncommitted
 ```
+
+当前 `codex review` 版本的 help 可能仍显示可传 prompt，但实测 `--uncommitted` 与 positional prompt 不能同用。review uncommitted changes 时只传 `--uncommitted`；把“只修与 X 相关的问题”等范围控制放在本 skill 的 Evaluate 阶段处理，不要塞进 review 命令。
 
 把命令 timeout 设置为至少 900000 ms（15 分钟）。`codex review` 实测可能持续 10-12 分钟，外层 timeout 必须留足，否则会在脚本完成前被杀掉。
 
@@ -70,7 +71,7 @@ python scripts/codex_review.py \
 
 ### 2. Review
 
-运行 `python scripts/codex_review.py --cd <project-path> --uncommitted`。保留每轮 review 的关键信息：
+运行 `python scripts/codex_review.py --cd <project-path> --uncommitted`，不要追加 prompt 或自定义审查要求。保留每轮 review 的关键信息：
 
 - 轮次编号
 - finding 标题和优先级
