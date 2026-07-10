@@ -19,6 +19,8 @@ description: |
 
 这个 skill 解决的是循环控制和决策边界；Codex 只提供独立 review 结果，最终判断和代码修改由当前 agent 负责。
 
+需要可审计的 findings 台账（逐轮记录、归因、收口证据）时，使用 codex-review-fix-loop-ledger，它在本 loop 上叠加台账层。
+
 ## 输入要求
 
 开始前确认项目路径，并推断改动意向：
