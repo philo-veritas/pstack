@@ -3,18 +3,23 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "在 /tmp/sample-api 项目里执行 review & evaluate & fix loop。初始改动意向 X 是：修复用户登录回调在缺少 state 参数时返回 500 的问题。请 review uncommitted changes，只修复与这个意向相关的 codex findings，直到 review 没有 findings。",
-      "expected_output": "Agent should identify project path and X, run codex_review.py with --cd /tmp/sample-api --uncommitted, evaluate each finding against X, fix only related findings, rerun review until clean, and report review rounds plus verification."
+      "prompt": "在 /tmp/sample-api 项目里执行 review & evaluate & fix loop。X 是修复登录回调缺少 state 时返回 500。请 review 未提交改动，只修与 X 相关的 findings，直到 clean。",
+      "expected_output": "Agent should set the project workdir or use `codex -C /tmp/sample-api review --uncommitted`, keep X in the Evaluate phase instead of appending a positional prompt, fix only related findings, rerun the same target until clean, and report rounds plus verification."
     },
     {
       "id": 2,
-      "prompt": "项目路径是 /tmp/billing-service。X：这次改动只是给 invoice export 增加 CSV header。请循环 codex review 并修复 findings；如果 review 提到历史上的 retry backoff 问题，不要修它，只说明它和 X 无关。",
-      "expected_output": "Agent should keep the loop scoped to CSV header changes, classify retry backoff findings as unrelated, avoid broad fixes, and stop only when findings are clean or remaining findings are unrelated."
+      "prompt": "项目是 /tmp/billing-service。以 main 为基线审查当前分支并循环修复。X 只是给 invoice export 增加 CSV header；历史 retry backoff 问题不要修。",
+      "expected_output": "Agent should choose `codex review --base main`, keep main as the stable target across rounds, classify historical retry backoff findings as unrelated, avoid broad fixes, and stop only on the documented loop conditions."
     },
     {
       "id": 3,
-      "prompt": "当前目录就是项目。刚才我们给 codex_review.py 增加了 --cd 参数，现在跑 review/evaluate/fix loop。如果某个 finding 的修复需要改变 --cd 的参数语义或兼容性，请先停下来问我，不要直接决定。",
-      "expected_output": "Agent should infer X from the conversation as adding --cd to codex_review.py, treat cwd as project path, review uncommitted changes, fix clear wrapper issues, and pause for user input if a finding requires changing argument semantics or compatibility beyond inferred X."
+      "prompt": "审查 /tmp/order-service 的 commit abc123。发现相关问题就在工作区修复并继续 review，但不要 amend、rebase 或改写历史。",
+      "expected_output": "Agent should first run `codex review --commit abc123`, recognize that the commit target is immutable, and check that the worktree is clean and HEAD equals or contains abc123 before applying fixes. If that boundary is not satisfied, it should pause without stashing or switching automatically. Otherwise it should avoid rewriting history, review the resulting fix patch with `--uncommitted` (and optionally the branch with a known base), and distinguish the original commit findings from the clean status of the fix patch."
+    },
+    {
+      "id": 4,
+      "prompt": "在当前项目做一次自定义 review/fix loop：检查锁顺序和死锁风险，审查范围是 src/worker 这次相对 HEAD 的改动。内置 target 不足以表达时用原生 Codex CLI。",
+      "expected_output": "Agent should use a standalone custom positional PROMPT or stdin PROMPT that fully defines the target and criteria, not combine it with `--uncommitted`, reuse the same instructions across rounds, and retain the normal Evaluate/Fix/Verify boundaries."
     }
   ]
 }
