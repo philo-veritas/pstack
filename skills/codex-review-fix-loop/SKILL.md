@@ -1,7 +1,7 @@
 ---
 name: codex-review-fix-loop
 description: |
-  使用 Codex 原生 `codex review` 对指定 Git 项目执行 review → evaluate → fix 循环。用户提出“review and fix until clean”、“循环 codex review”、“根据改动意向修复 review findings”、“审查分支/commit/未提交改动并修到没有 findings”、或要求反复审查与修复时使用本 skill。必须拿到项目路径；初始改动意向 X 默认从当前对话、最近任务和 diff 中推断。根据场景选择 `--uncommitted`、`--base`、`--commit` 或自定义 `PROMPT`，评估每条 finding 是否与 X 相关，只修复相关问题，并循环到 clean 或需要用户决策。
+  使用 Codex 原生 `codex review` 对指定 Git 项目执行 review → evaluate → fix 循环。用户提出“review and fix until clean”、“循环 codex review”、“根据改动意向修复 review findings”、“审查分支/commit/未提交改动并修到没有 findings”、或要求反复审查与修复时使用本 skill。必须拿到项目路径；初始改动意向 X 默认从当前对话、最近任务和 diff 中推断。根据场景选择带递归防护的当前改动 `PROMPT`、`--base`、`--commit` 或其他自定义 `PROMPT`，评估每条 finding 是否与 X 相关，只修复相关问题，并循环到 clean 或需要用户决策。
 ---
 
 # Codex Review Fix Loop
@@ -50,18 +50,20 @@ description: |
 优先把工具调用的 `workdir` 设置为项目路径。需要在命令中显式指定路径时，使用 Codex 全局 `-C`，并把它放在 `review` 子命令之前：
 
 ```bash
-codex -C <project-path> review --uncommitted
+codex -C <project-path> review "Review the current code changes (staged, unstaged, and untracked files) and provide prioritized findings. Do not run codex, codex review, or invoke any other AI reviewer command."
 ```
+
+审查当前 staged、unstaged 和 untracked 改动时，必须使用上面的完整 prompt。Codex 源码中 `--uncommitted` 会生成其中的第一句；本 skill 改用自定义 prompt，是为了追加第二句递归防护。不要把该命令缩写回 `--uncommitted`。
 
 ### 命令与适用场景
 
 | 命令 | 审查内容 | 适用场景 | 循环注意事项 |
 |---|---|---|---|
-| `codex review --uncommitted` | staged、unstaged、untracked 改动 | 提交前检查；当前工作区 review/fix；本 skill 默认场景 | 修复会直接更新同一目标，最适合循环到 clean |
+| `codex review "Review the current code changes ... Do not run codex ..."` | staged、unstaged、untracked 改动 | 提交前检查；当前工作区 review/fix；本 skill 默认场景 | 每轮原样复用上面的完整 prompt，防止 reviewer 递归调用 AI reviewer |
 | `codex review --base <branch>` | 当前分支相对指定基线分支 merge-base 的改动 | PR/MR 风格审查；整个功能分支验收 | 每轮保持同一 base；修复后分支 diff 会随之更新 |
 | `codex review --commit <sha>` | 指定 commit 引入的改动 | 已提交 change set 的一次性审查；定位某次提交的问题 | commit 是不可变目标；不改写历史时，修复工作区后不能宣称原 commit 已 clean |
-| `codex review "<instructions>"` | 完全由 instructions 定义 | 内置目标不能表达的专项范围或审查准则 | prompt 必须自行写清审查对象；每轮原样复用，避免目标漂移 |
-| `codex review -` | 从 stdin 读取自定义 instructions | 指令很长，或由上游命令提供 | 与 positional prompt 语义相同 |
+| `codex review "<instructions>"` | 完全由 instructions 定义 | 内置目标不能表达的专项范围或审查准则 | prompt 必须写清对象并包含递归防护；每轮原样复用 |
+| `codex review -` | 从 stdin 读取自定义 instructions | 指令很长，或由上游命令提供 | 与 positional prompt 语义相同，同样必须包含递归防护 |
 
 审查指定 commit 时，可以提供仅用于该 commit 的标题：
 
@@ -69,13 +71,17 @@ codex -C <project-path> review --uncommitted
 codex review --commit <sha> --title "<commit-title>"
 ```
 
-原生 CLI 的四种 target `--uncommitted`、`--base`、`--commit`、自定义 `PROMPT` 两两互斥。`--title` 的语义是 commit 标题，只在 `--commit` 场景使用，即使某个 CLI 版本没有拒绝其他组合也不要依赖该行为。不要写：
+原生 CLI 的四种 target `--uncommitted`、`--base`、`--commit`、自定义 `PROMPT` 两两互斥。`--title` 的语义是 commit 标题，只在 `--commit` 场景使用，即使某个 CLI 版本没有拒绝其他组合也不要依赖该行为。当前改动的完整 prompt 本身就是 target，不要写：
 
 ```bash
 codex review --uncommitted "只检查与 X 相关的问题"
 ```
 
-目标是未提交改动但只允许修复 X 范围内的问题时，仍使用 `--uncommitted`，把 X 作为 Evaluate 阶段的过滤边界，而不是附加到 review 命令。
+目标是未提交改动但只允许修复 X 范围内的问题时，使用完整的当前改动 prompt，把 X 作为 Evaluate 阶段的过滤边界，不要再修改 review prompt。其他自定义 prompt 也必须追加以下原文（已包含时不重复）：
+
+```text
+Do not run codex, codex review, or invoke any other AI reviewer command.
+```
 
 交互式 TUI 的 `/review` 也提供 base、uncommitted、commit、自定义指令四种预设，适合用户手动发起一次审查；本 skill 的自动循环使用非交互 `codex review`，不要为了执行 loop 启动 TUI。
 
@@ -86,19 +92,19 @@ codex review --uncommitted "只检查与 X 相关的问题"
 按以下顺序选择 R：
 
 1. 用户显式指定 target 时，使用该 target。
-2. 用户说“当前改动”“未提交改动”“提交前”或只要求把刚完成的修改审到 clean，使用 `--uncommitted`。
+2. 用户说“当前改动”“未提交改动”“提交前”、显式指定 `--uncommitted`，或只要求把刚完成的修改审到 clean，使用完整的当前改动 prompt。
 3. 用户说“相对 main/develop”“PR/MR”“整个分支”，使用 `--base <branch>`。
 4. 用户给出 SHA 或要求审查某个已提交 change set，使用 `--commit <sha>`。
-5. 只有内置 target 无法表达审查对象时才使用自定义 `PROMPT`；prompt 必须包含稳定、可复现的目标描述。
+5. 只有内置 target 无法表达审查对象时才使用其他自定义 `PROMPT`；prompt 必须包含稳定、可复现的目标描述和递归防护。
 
-不要为了使用自定义标准而放弃已经明确的结构化 target。比如“审查未提交改动，只修复登录回调相关问题”仍选择 `--uncommitted`，再用 X 限制修复范围。
+不要为了使用自定义标准而放弃已经明确的 `--base` 或 `--commit` target。当前改动是例外：它固定使用带递归防护的 prompt。比如“审查未提交改动，只修复登录回调相关问题”使用该完整 prompt，再用 X 限制修复范围。
 
 ### `--commit` 的修复边界
 
 `--commit <sha>` 每次都会审查同一个不可变提交。发现问题后：
 
 - 进入自动修复前，要求工作树干净，且当前 HEAD 等于目标 commit 或包含该 commit。否则只交付 commit findings，并暂停确认要在哪个分支或独立 worktree 中修复；不要自动 stash、切分支或覆盖已有改动。
-- 未得到改写历史授权时，可以把修复写入工作区，并用 `--uncommitted` 审查修复补丁；如果已知 base，也可用 `--base` 审查包含原 commit 和修复的整体分支。
+- 未得到改写历史授权时，可以把修复写入工作区，并用完整的当前改动 prompt 审查修复补丁；如果已知 base，也可用 `--base` 审查包含原 commit 和修复的整体分支。
 - 不要在未授权时自动 `commit --amend`、rebase 或移动分支。
 - 最终报告要区分“原 commit 的 findings”“修复补丁已 clean”和“原 commit 是否被改写”。
 
@@ -108,17 +114,17 @@ codex review --uncommitted "只检查与 X 相关的问题"
 
 先按 R 做只读预检：
 
-- `--uncommitted`：检查 `git status`、`git diff`、`git diff --staged`。没有未提交改动就停止，不要空跑 review。
+- 当前改动 prompt：检查 `git status`、`git diff`、`git diff --staged`。没有未提交改动就停止，不要空跑 review。
 - `--base <branch>`：确认 branch 可解析，并确认当前分支相对 merge-base 存在待审改动。
 - `--commit <sha>`：确认 SHA 可解析，并用 `git show --stat --oneline <sha>` 核对目标；同时记录工作树是否干净、HEAD 是否等于或包含目标 commit。只读 review 不要求工作树干净，但自动修复必须满足前述 commit 修复边界。
-- 自定义 `PROMPT`：确认 prompt 已写清审查对象和完成标准。
+- 自定义 `PROMPT`：确认 prompt 已写清审查对象和完成标准，并包含递归防护。
 
 在第一次 review 前，向用户简短说明边界：
 
 ```text
 项目：<project-path>
 改动意向 X：<one sentence>
-审查目标 R：<uncommitted / base branch / commit / custom>
+审查目标 R：<current changes prompt / base branch / commit / custom>
 命令：<exact codex review command>
 停止条件：review 没有 findings；或修复需要改变 X、扩大范围、改写历史；或多轮未收敛（最多 10 轮）。
 ```
