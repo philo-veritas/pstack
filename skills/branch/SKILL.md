@@ -1,7 +1,7 @@
 ---
 name: branch
 description: |
-  创建 git 分支。按照 <type>/<short-english-description> 规范从当前分支创建新分支。
+  创建 git 分支。按照“类型/简短英文描述”规范从当前分支或指定基线创建新分支。
   支持从用户描述推断分支名，或分析未提交改动自动生成。
   当用户说"创建分支"、"新建 branch"、"切个分支"、"开分支"、"建个分支"、
   "create branch"、"new branch"时使用此 skill。
@@ -9,7 +9,7 @@ description: |
 
 # Branch - 创建 Git 分支
 
-按照 `<type>/<short-english-description>` 规范创建新分支。
+默认按照 `<type>/<short-english-description>` 规范推断新分支名；用户明确指定的名称优先。
 
 ## 分支类型
 
@@ -22,7 +22,9 @@ description: |
 | `chore`    | 构建、CI、依赖更新等杂务         |
 | `docs`     | 文档新增或修改                   |
 
-## 命名约束
+## 默认命名约束
+
+以下格式用于 agent 推断名称。用户明确给定名称时，以该名称为准，但必须通过 `git check-ref-format --branch <name>` 校验且不能覆盖已有分支；不要仅为符合默认格式再次要求用户改名。
 
 - 格式：`<type>/<kebab-case-description>`
 - description 使用英文，kebab-case，最多 5 个单词
@@ -37,7 +39,7 @@ description: |
 - 当前分支名
 - 是否有未提交的改动（uncommitted changes）
 
-如果当前不在 main 分支，提醒用户："当前在 `<branch>` 分支，新分支将从此处创建。是否要先切回 main？"
+基线优先采用用户指定的分支或 commit，否则默认当前 HEAD 并告知；不要仅因当前分支不是 main 就询问是否切回 main。先验证基线可解析、目标分支名合法且不存在。基线无法确定、名称冲突或 Git 操作进行中时，只询问具体缺口，不覆盖或重置现有分支。
 
 ### 第二步：推断分支名
 
@@ -49,21 +51,18 @@ description: |
 
 如果信息不足以推断，主动询问用户要做什么。
 
-### 第三步：确认
+### 第三步：复用授权或确认推断名称
 
-向用户展示建议的分支名，等待确认：
+用户已给出合法分支名并要求创建时，直接使用，不重复确认。由 agent 推断名称时，展示基线和建议名称，请求一次确认；已有明确确认则直接继续。没有答复不视为批准。
 
-> 建议分支名：`feature/user-export-module`
->
-> 确认创建？或告诉我调整方向。
-
-用户确认后才执行创建。
+> 将从 `<base>` 创建 `feature/user-export-module`，请确认名称或给出调整。
 
 ### 第四步：创建分支
 
-1. 如果有未提交改动：先 `git stash`
-2. 执行 `git checkout -b <branch-name>`
-3. 如果第 1 步做了 stash：执行 `git stash pop`
+1. 通常执行 `git switch -c <branch-name>`；指定其他基线时使用 `git switch -c <branch-name> <base>`。
+2. 从当前 HEAD 创建分支时保留工作区及暂存区，不例行 `stash` / `stash pop`。
+3. 其他基线可能改变带有未提交改动的工作区时，先检查影响；只有能保留现有内容和暂存状态、且符合用户意图时才执行。否则准备可审阅的隔离方案并询问，不自动 stash、强制切换、覆盖文件或改写历史。
+4. 核对当前分支和 Git 状态。本任务不自动 commit 或 push。
 
 创建完成后输出确认信息。
 

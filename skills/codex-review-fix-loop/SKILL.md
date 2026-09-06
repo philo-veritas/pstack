@@ -23,7 +23,7 @@ description: |
 
 ## 输入要求
 
-开始前确认三个输入：
+先从当前对话、工作目录和 Git 状态解析三个输入；能够确定时直接继续，不要求用户重复填写：
 
 - `项目路径`：要 review 的 Git repository 根目录。
 - `初始改动意向 X`：本轮改动原本想完成什么。用户可以显式提供；没有提供时，从上下文推断。
@@ -41,7 +41,9 @@ description: |
 - 同时存在多个互不相关的候选 X，且选择错误会导致修错范围。
 - 用户要求 `--base`，但基线分支无法从上下文或 Git 状态确定。
 - diff 很大但上下文没有明确目标。
-- 修复可能改变公共 API、数据迁移、权限模型、持久化格式或提交历史。
+- 修复引入尚未获授权的公共 API、数据迁移、权限模型、持久化格式或提交历史变化。只读审查和方案准备不受此项阻塞。
+
+已在当前会话明确批准的范围和决定继续有效。实现已批准契约、恢复明确预期行为及必要测试，不因涉及上述领域而重复审批。新事实使原批准不再覆盖拟执行操作时，说明差异再询问；沉默和超时不是批准。review/fix 请求本身不授权 commit、push、历史改写或绕过 hook。
 
 ## 原生 CLI 命令
 
@@ -85,7 +87,7 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 
 交互式 TUI 的 `/review` 也提供 base、uncommitted、commit、自定义指令四种预设，适合用户手动发起一次审查；本 skill 的自动循环使用非交互 `codex review`，不要为了执行 loop 启动 TUI。
 
-`codex review` 没有公开的 review 总时限参数。外层执行工具的 timeout 设置为至少 900000 ms（15 分钟）；这是调用器超时，不是 CLI 参数。原生输出可能包含工具日志、完整 diff 和重复的最终结论，读取最后一份完整 reviewer 结论，不要因为前段输出很长就提前判定结果。
+`codex review` 没有公开的 review 总时限参数。若外层有总执行时限，给出至少 900000 ms（15 分钟）；这是调用器超时，不是 CLI 参数。工具支持后台会话或 yield 时，使用短轮询保持进度沟通，不把单次等待上限当成进程总时限。原生输出可能包含工具日志、完整 diff 和重复的最终结论，读取最后一份完整 reviewer 结论，不要因为前段输出很长就提前判定结果。
 
 ## 选择审查目标
 
@@ -104,6 +106,7 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 `--commit <sha>` 每次都会审查同一个不可变提交。发现问题后：
 
 - 进入自动修复前，要求工作树干净，且当前 HEAD 等于目标 commit 或包含该 commit。否则只交付 commit findings，并暂停确认要在哪个分支或独立 worktree 中修复；不要自动 stash、切分支或覆盖已有改动。
+- 叠加台账时，允许从上述干净检查中排除本轮新建的精确台账/raw 路径，但必须在创建前已记录工作树干净，并验证这些路径不在目标 commit 中、没有既有用户内容，且当前所有脏路径都属于该集合。原有 staged/unstaged/untracked 内容、业务代码和来源不明的变化均不能排除；无法证明时仍按不干净处理。此例外只用于首次修复前的检查，不从后续修复补丁 review 中隐藏任何业务改动。
 - 未得到改写历史授权时，可以把修复写入工作区，并用完整的当前改动 prompt 审查修复补丁；如果已知 base，也可用 `--base` 审查包含原 commit 和修复的整体分支。
 - 不要在未授权时自动 `commit --amend`、rebase 或移动分支。
 - 最终报告要区分“原 commit 的 findings”“修复补丁已 clean”和“原 commit 是否被改写”。
@@ -126,7 +129,7 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 改动意向 X：<one sentence>
 审查目标 R：<current changes prompt / base branch / commit / custom>
 命令：<exact codex review command>
-停止条件：review 没有 findings；或修复需要改变 X、扩大范围、改写历史；或多轮未收敛（最多 10 轮）。
+停止条件：review 完成且相关项已处理；或需要新授权且其他独立工作已完成；或重复 review 失败；或达到 10 轮安全上限。
 ```
 
 如果目标中包含多个明显无关的改动主题，且无法从上下文判断 X 对应哪个主题，先暂停并建议用户选择或拆分；不要在一个 loop 里混合修复无关主题。
@@ -158,7 +161,7 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 
 - 修复 `相关` 且修复方案明确的问题。
 - 不修复 `不相关` 问题，但在最终报告中列出。
-- `不确定` 问题不要猜测；把本轮所有需用户决策的项攒在一起一次性问，拿到答复再继续。
+- `不确定` 项先查现有需求、契约、代码和测试；仍需用户决定时汇总询问，只暂停依赖该决定的修改。继续其他已授权、方案明确且独立的修复及验证；不得通过共享改动间接决定待确认项。答复到达后继续依赖工作，不重复问同一决定。
 - finding 明显误判时，记录理由并继续下一条。
 
 ### 4. Fix
@@ -171,7 +174,7 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 - 不扩大 X 的功能范围。
 - 不因 `--commit` review 自动改写提交历史。
 
-如果修复会改变 X 的行为、公共 API、数据迁移、权限模型、持久化格式或提交历史，先暂停并说明取舍。
+如果修复超出已确认的 X，或引入尚未获授权的契约、迁移、权限、持久化格式或历史变化，先准备证据和具体方案，再请求该变化的批准。其余独立工作继续。修复 X 中的错误行为不等于扩大 X。历史改写仍须明确授权。
 
 ### 5. Verify
 
@@ -179,6 +182,7 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 
 - 优先使用项目已有测试、lint、typecheck。
 - 没有明确验证命令时，至少运行针对被改模块的最小可用检查。
+- 验证失败时先诊断原因；由 X 引起且可在授权范围内修复的问题继续修复并重跑相关检查，不仅因测试失败就结束。只有无法在当前授权和可用环境内解决的缺口才作为阻塞报告，不为通过检查削弱断言或忽略错误。
 - 验证无法运行时记录原因并继续下一轮 review；最终报告必须说明未验证项。
 
 ### 6. Repeat
@@ -187,11 +191,11 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 
 - review 输出明确表示没有 findings；或
 - 连续两轮只剩误判 / 不相关问题；或
-- 出现需要用户决策的问题，且本轮相关项已汇总；或
-- 修复需要扩大 X、改变审查目标或改写历史，必须由用户确认；或
+- 仍有需要用户决策的问题，且不依赖该决定的相关修复和适用验证已完成；或
+- 下一步需要尚未授权的范围扩展、审查目标变化或历史改写，且其他独立工作已完成；`--commit` 按既定规则转为修复补丁审查不重复审批；或
 - 已经跑满 10 轮但仍不断出现新 finding：暂停并汇报当前状态，交用户决定是否继续。
 
-不要因为“已经修了几处”就停止。停止条件必须和 review 结果绑定。
+不要因为“已经修了几处”就停止。停止条件必须和 review 结果绑定。待决项未解决前不能宣称整体 clean；独立修复改变了受审内容时，按原 R 验证修复结果，不为等待答复而重复审查未变化内容。
 
 ## Codex 输出判断
 
@@ -221,7 +225,8 @@ Do not run codex, codex review, or invoke any other AI reviewer command.
 结束时用简短报告交付：
 
 ```text
-完成状态：clean / paused / blocked
+完成状态：clean / scoped-clean / paused / blocked
+Review 结论：no findings / 仅误判或不相关项 / 有待处理项 / review 失败
 项目：<project-path>
 改动意向 X：<one sentence>
 审查目标 R：<target>
@@ -234,7 +239,9 @@ Review 轮次：<n>
 - <finding>: <不相关/误判/等待用户决策>，原因...
 ```
 
-如果使用 `--commit` 后把修复留在工作区，明确报告原 commit 未变，以及最终 clean 结论对应的是修复补丁还是整个分支。最终状态不是 `clean` 时，说明下一步需要用户做什么决定。
+`scoped-clean` 表示连续两轮只剩已说明理由的误判或范围外 findings，不等于 reviewer 无 findings。必要验证失败或未运行时，不宣称任务全部完成：报告 blocked 及验证缺口，即使 review 本身无 findings。暂停或阻塞时说明实际需要的决定或外部条件，不机械地要求用户“确认继续”。
+
+如果使用 `--commit` 后把修复留在工作区，明确报告原 commit 未变，以及最终 clean 结论对应的是修复补丁还是整个分支。最终报告分别说明本地修复、验证、提交和推送的实际状态。
 
 ## 示例触发
 

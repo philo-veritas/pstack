@@ -2,7 +2,7 @@
 
 本文件是 codex-review-fix-loop-ledger 的细节层:字段 schema、分类表、fallback 模板、提交机制命令序列、报告模板。
 
-**权威口径**:项目有自己的台账模板时(如 practical-education 的 `CodexReviewFindings记录模板.md`),以项目模板的结构与分类定义为准,本文所有表仅作无项目模板时的 fallback,不做二次维护、不参与有模板项目的生成。
+**权威口径**:项目有自己的台账模板时(如 practical-education 的 `CodexReviewFindings记录模板.md`),以项目模板的结构与分类定义为准,本文的结构、字段及证据策略仅补充项目未定义部分；项目的门禁和授权边界同样优先。
 
 ## 1. 文件命名
 
@@ -11,11 +11,11 @@
 {ledger_dir}/raw/{yyyy-mm-dd-HHmm}-{scope}-{change-slug}-commands-raw.md
 ```
 
-`ledger_dir` 由 SKILL.md 前置检查的解析顺序决定(项目规则 → root-docs 区 → `<repo>/docs/review-findings/`)。
+`ledger_dir` 严格按 `../SKILL.md` 的“前置检查与位置”解析；此处不另设 fallback 顺序。root-docs 只有在项目将其指定为审计 owner 时才可采用，普通 fallback 必须在任何 Git 工作树之外。
 
 ## 2. raw 记录
 
-每次执行以下命令后追加一条 raw 记录:codex review(每轮 + final clean)、测试 / lint / typecheck / build、`git diff --check` 等收口判断命令。
+无项目证据策略时，每次执行以下命令后追加一条 raw 记录:codex review(每轮 + final clean)、测试 / lint / typecheck / build、`git diff --check` 等收口判断命令。
 
 | 字段 | 说明 |
 | --- | --- |
@@ -121,59 +121,72 @@
 <!-- final clean review(RAW ID)或台账自引用收口结论(含前置条件核对) -->
 ```
 
-## 7. 提交机制命令序列(同 repo 台账)
+## 7. 可选提交机制与证据收口
 
-冒烟已验证(2026-07-10,见 discuss/codex-review-fix-loop-台账改进-修订建议稿.md 第 6 节):`--only` pathspec 提交不吃 index、amend 保持文件列表、`--no-verify` 绕过 hook、staged/untracked 均被 `--uncommitted` 覆盖。
+仅在 SKILL.md 的授权、目标和 Git 前提全满足时使用；不满足则按位置策略保留文件，不执行本节 Git 修改。
 
-### 前提检查(任一失败即停)
+### 前提核对
 
 ```bash
-git -C <repo> rev-parse --is-inside-work-tree   # 是 git 仓库
-git -C <repo> rev-parse --verify HEAD            # HEAD 存在(非空仓库)
-git -C <repo> symbolic-ref -q HEAD               # 非 detached HEAD
-ls <repo>/.git/rebase-merge <repo>/.git/rebase-apply <repo>/.git/MERGE_HEAD 2>/dev/null  # 应全部不存在
-git -C <repo> diff --cached --name-only          # 非空则向用户说明预存 stage
+git -C <repo> rev-parse --verify HEAD
+git -C <repo> symbolic-ref -q HEAD
+git -C <repo> status --porcelain=v1
+git -C <repo> diff --cached --name-only
 ```
 
-### 首轮(台账/raw 为 untracked,必须先精确 add)
+通过 `git rev-parse --git-path <name>` 解析 `rebase-merge`、`rebase-apply`、`MERGE_HEAD`、`CHERRY_PICK_HEAD` 和 `REVERT_HEAD` 并检查是否存在；worktree 的 `.git` 可能是文件，不能硬编码 `<repo>/.git/...`。
+
+记录原 HEAD、非台账业务 diff 和暂存状态。确认台账/raw 是本轮新建路径，且当前 Git 授权覆盖拟执行操作。
+
+### 首轮提交（仅已获授权时）
 
 ```bash
-git add <台账路径> <raw路径>
-git commit --only --no-verify -m "chore(review): 评审台账 [review-ledger]" -- <台账路径> <raw路径>
-# 立即断言:输出必须恰为台账/raw 两个路径
+git add -- <台账路径> <raw路径>
+git commit --only -m "chore(review): 评审台账 [review-ledger]" -- <台账路径> <raw路径>
 git show --pretty="" --name-only HEAD
+git rev-parse HEAD
 ```
 
-### 每轮结束(amend 前三断言)
+核对提交文件仅为台账/raw，并记录新 SHA；核对 hooks 没有改动非台账内容或预存 stage。hook 失败时诊断原因或禁用提交机制，不自动加 `--no-verify`，不清空 index 重试。
+
+### 每轮更新（仅已获 amend 授权时）
 
 ```bash
-git show --pretty="" --name-only HEAD            # ① 只含台账/raw 路径,逐条校验
-git log -1 --format=%s                           # ② 含 [review-ledger]
-git branch -r --contains HEAD                    # ③ 输出为空(未 push)
-# 三断言全过:
-git commit --amend --only --no-verify --no-edit -- <台账路径> <raw路径>
-git show --pretty="" --name-only HEAD            # 再次断言文件列表
+git rev-parse HEAD                              # 必须等于本轮记录的台账 SHA
+git show --pretty="" --name-only HEAD           # 仅台账/raw
+git log -1 --format=%s                          # 含 [review-ledger]
+git branch -r --contains HEAD                   # 辅助检查，空输出不足以证明未发布
 ```
 
-### 断言失败处理
+结合本轮创建记录、发布操作及远程状态确认未发布；存在并发发布或来源不明等不确定性时，不 amend。全通过后才运行：
 
-- commit 后文件列表掺入其他文件:`git reset --soft HEAD^` 回滚,停下报错(注意:回滚会把业务改动置为 staged,staged 同样被 `--uncommitted` 覆盖,不漏审)。
-- 三断言任一不成立(典型:用户在两轮间自己 commit 了):**绝不 amend**,改为在 HEAD 之上新建台账 commit(同样 `--only --no-verify` + 断言),或暂停交用户决定。
+```bash
+git commit --amend --only --no-edit -- <台账路径> <raw路径>
+git show --pretty="" --name-only HEAD
+git rev-parse HEAD
+```
 
-### 台账自引用收口结论(纯兜底)
+记录新的专用台账 SHA，并再次核对业务 diff 和预存 stage。`--no-verify` 不在默认命令中；单独明确授权绕过 hook 时才可追加。
 
-仅当同时满足才可使用:
+### 失败处理
 
-1. 提交机制与 repo 外台账均不可用。
-2. 业务代码、需求、接口、SQL、上线流程等受审对象已无 findings。
-3. 最后一轮 review 原始输出已写入 raw。
-4. 台账写明判断依据、已通过的验证命令、不继续重跑的理由。
-5. 没有被用于跳过任何业务或契约类 finding。
+- 提交失败或前提断言失败：禁用该机制，用允许的非提交方式继续记录。项目没有合规替代方式时，报告具体审计阻塞。
+- 提交掺入业务文件、hook 改动业务/index 或 HEAD 意外变化：先停止 Git 修改，保留证据并重新核对受审对象；准备恢复方案，不自动 `reset`、stash、改写历史或创建另一个台账 commit。受审输入未确认前不能继续宣称 clean。
+
+### 纯证据自引用收口
+
+只有全部满足时可不因最终记账再跑 review：
+
+1. 项目允许该收口方式，实质受审内容未在 final review 后改变。
+2. 业务代码、需求、接口、SQL、上线流程等无未处理的真实相关 finding，也无待决项。
+3. 最后一轮 review 完整原始结论已保留；如仍有台账自引用 finding，报告原文和判定依据，不声称原始输出为 no findings。
+4. 台账的格式、引用、路径和状态一致性检查通过；真实审计缺陷已修正。
+5. 必要业务验证与项目审计门槛已满足。未满足时仍报告 blocked。
 
 ## 8. 最终报告模板
 
 ```text
-完成状态:clean / paused / blocked
+完成状态:clean / scoped-clean / paused / blocked
 项目:<project-path>
 改动意向 X:<one sentence>
 台账:<path>
@@ -191,6 +204,7 @@ Findings 归因摘要:
 预防动作:
 - ...
 收尾指引:
-- HEAD 为台账 commit [review-ledger](未 push);业务改动未提交
-- 后续业务 commit 会落在台账 commit 之上,可按需 squash / reorder
+- 隔离方式:<repo 外 / 同 repo 未提交 / 已授权提交机制>
+- Git 状态:<实际 HEAD、台账及业务是否提交/推送>
+- 长期归档:<已完成 / 项目无要求 / 待完成及原因>
 ```

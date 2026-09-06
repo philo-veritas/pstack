@@ -1,6 +1,7 @@
 ---
 name: spark
-version: 0.1.2
+metadata:
+  version: "0.1.2"
 description: "Use when the user wants to brainstorm an idea or design a feature/spec. Explores intent and requirements through dialogue, then writes a spec document to docs/spark/ and STOPS. Does not auto-chain to implementation planning or any other skill."
 ---
 
@@ -11,26 +12,28 @@ Help turn ideas into fully formed designs and specs through natural collaborativ
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
 
 <HARD-GATE>
-Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies within this skill's design scope regardless of perceived simplicity. Design documents and explicitly approved companion mockups are design artifacts, not permission to implement the product.
 </HARD-GATE>
 
-## Anti-Pattern: "This Is Too Simple To Need A Design"
+## Scope and Existing Decisions
 
-Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+This process applies to brainstorming and design tasks accepted by this skill. Do not reroute a routine implementation, bug fix, or config edit into brainstorming merely because it involves a design choice. Within a design task, preserve the design approval gate even for a small design.
+
+Reuse answers and approvals already present in the conversation. Explore the codebase before asking for missing facts. Ask only about unresolved decisions that materially affect the design; state reasonable low-risk assumptions and continue. An existing approval applies to the same design and scope, not to newly introduced tradeoffs. Silence is not approval.
 
 ## Checklist
 
 You MUST create a task for each of these items and complete them in order:
 
 1. **Explore project context** — check files, docs, recent commits
-2. **Offer visual companion** (if topic will involve visual questions) — this is its own message, not combined with a clarifying question. See the Visual Companion section below.
-3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+2. **Offer visual companion** (if topic will involve visual questions) — request companion consent separately from design approval. See the Visual Companion section below.
+3. **Resolve missing decisions** — reuse context first; ask one material question at a time only when needed
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/spark/YYYY-MM-DD-<topic>-design.md` and commit
+6. **Write design doc** — save to `docs/spark/YYYY-MM-DD-<topic>-design.md`; commit only if already authorized
 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
 8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Deliver spec to user and STOP** — report the spec file path; do not invoke any other skill or start implementation
+9. **Deliver spec to user and STOP** — report the spec file path; do not auto-chain to implementation planning or product implementation
 
 ## Process Flow
 
@@ -38,7 +41,7 @@ You MUST create a task for each of these items and complete them in order:
 digraph brainstorming {
     "Explore project context" [shape=box];
     "Visual questions ahead?" [shape=diamond];
-    "Offer Visual Companion\n(own message, no other content)" [shape=box];
+    "Request Visual Companion consent" [shape=box];
     "Ask clarifying questions" [shape=box];
     "Propose 2-3 approaches" [shape=box];
     "Present design sections" [shape=box];
@@ -49,9 +52,9 @@ digraph brainstorming {
     "Deliver spec path to user and STOP" [shape=doublecircle];
 
     "Explore project context" -> "Visual questions ahead?";
-    "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
+    "Visual questions ahead?" -> "Request Visual Companion consent" [label="yes"];
     "Visual questions ahead?" -> "Ask clarifying questions" [label="no"];
-    "Offer Visual Companion\n(own message, no other content)" -> "Ask clarifying questions";
+    "Request Visual Companion consent" -> "Ask clarifying questions";
     "Ask clarifying questions" -> "Propose 2-3 approaches";
     "Propose 2-3 approaches" -> "Present design sections";
     "Present design sections" -> "User approves design?";
@@ -64,7 +67,7 @@ digraph brainstorming {
 }
 ```
 
-**The terminal state is delivering the spec to the user. STOP.** Do NOT invoke any other skill, do NOT start implementation planning, do NOT write code. Report the spec path and end your turn — the user will decide what to do with the spec.
+**The terminal state is delivering the spec to the user. STOP.** Do NOT auto-chain to implementation planning or product implementation. Supporting skills for completing the authorized design deliverable are allowed. Report the spec path and end your turn — the user will decide what to do with the spec.
 
 ## The Process
 
@@ -111,7 +114,7 @@ digraph brainstorming {
 
 - Write the validated design (spec) to `docs/spark/YYYY-MM-DD-<topic>-design.md`
   - (User preferences for spec location override this default)
-- Commit the design document to git
+- Commit the design document only when the user has authorized that commit. Otherwise deliver the file without requiring a commit to finish. Do not infer push or history-rewrite permission from a design request.
 
 **Spec Self-Review:**
 After writing the spec document, look at it with fresh eyes:
@@ -126,14 +129,14 @@ Fix any issues inline. No need to re-review — just fix and move on.
 **User Review Gate:**
 After the spec review loop passes, ask the user to review the written spec before proceeding:
 
-> "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+> "Spec written to `<path>` and self-reviewed. Please review the document; any requested changes will be incorporated before this design task is marked approved."
 
-Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+Deliver the concrete file path with this review request; report its actual commit status separately. The written-spec approval gate remains in place. If the user requests changes, make them and self-review again. After approval, close the design task; do not start implementation planning unless the user gives a new instruction. An already explicit approval of this exact written version satisfies the gate.
 
 **Done — STOP here:**
 
 - Report the spec file path to the user and end your turn.
-- Do NOT invoke any other skill.
+- Do NOT auto-chain to another task; supporting skills remain limited to authorized design work.
 - Do NOT start implementation planning or write any code.
 - The user will decide what to do with the spec on their own.
 
@@ -153,7 +156,7 @@ A browser-based companion for showing mockups, diagrams, and visual options duri
 **Offering the companion:** When you anticipate that upcoming questions will involve visual content (mockups, layouts, diagrams), offer it once for consent:
 > "Some of what we're working on might be easier to explain if I can show it to you in a web browser. I can put together mockups, diagrams, comparisons, and other visuals as we go. This feature is still new and can be token-intensive. Want to try it? (Requires opening a local URL)"
 
-**This offer MUST be its own message.** Do not combine it with clarifying questions, context summaries, or any other content. The message should contain ONLY the offer above and nothing else. Wait for the user's response before continuing. If they decline, proceed with text-only brainstorming.
+**Keep companion consent distinct from design approval.** The request may include relevant context; it need not occupy an entire message or end the turn. Use an available asynchronous question mechanism when appropriate. Wait for consent before starting or using the companion, but continue independent text-based analysis while the offer is pending. If they decline or consent remains absent, keep working in text; do not treat silence as consent. Do not repeat an offer already answered in this conversation.
 
 **Per-question decision:** Even after the user accepts, decide FOR EACH QUESTION whether to use the browser or the terminal. The test: **would the user understand this better by seeing it than reading it?**
 
