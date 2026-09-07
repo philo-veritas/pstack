@@ -1,7 +1,7 @@
 ---
 name: git-commit-tag
 description: |
-  分析改动，生成合适的中文 git commit message 并标记代码作者（AI 或 Human）。当用户要求提交代码、commit、生成 commit message 时使用此 skill。支持 --ai/--human flag 和交互式选择。
+  分析改动，生成合适的中文 git commit message 并标记代码作者（AI 或 Human）。当用户要求提交代码、commit、生成 commit message 时使用此 skill。默认按 AI 编写处理，支持 --ai/--human flag 显式指定。
 allowed-tools:
   - Bash(git *)
   - Bash(bash *)
@@ -71,13 +71,9 @@ type(scope): 简短描述
 解析用户输入中的 flag：
 - `--ai` → 标记为 AI 编写
 - `--human` → 标记为人类编写
-- 无 flag → 使用 AskUserQuestion 询问：
+- 无 flag → 默认标记为 AI 编写，等同于 `--ai`，不询问作者类型
 
-```
-这次提交的代码主要由谁编写？
-- AI 编写（AI 生成或 AI 辅助完成主要逻辑）
-- 人类编写（人类手写，AI 仅辅助少量内容）
-```
+示例：`提交代码` 和 `提交 --ai` 均追加 AI trailer；`提交 --human` 不追加 AI trailer。
 
 **Step 6：构造最终 commit message**
 
