@@ -59,14 +59,18 @@ description: |
 
 ### 第四步：创建分支
 
-1. 通常执行 `git switch -c <branch-name>`；指定其他基线时使用 `git switch -c <branch-name> <base>`。
-2. 从当前 HEAD 创建分支时保留工作区及暂存区，不例行 `stash` / `stash pop`。
+1. 基线解析为当前 HEAD 时，直接执行 `git switch -c <branch-name>`；`git checkout -b <branch-name>` 等价可用，无需先清空工作区。此操作只切换分支引用，不改变文件内容或暂存区。
+2. 保留已暂存改动、未暂存改动、未跟踪文件和现有 stash。不要仅因工作区有改动就执行 `stash` / `stash pop`，也不要为包含新增文件而额外执行 `stash push --include-untracked`。
 3. 其他基线可能改变带有未提交改动的工作区时，先检查影响；只有能保留现有内容和暂存状态、且符合用户意图时才执行。否则准备可审阅的隔离方案并询问，不自动 stash、强制切换、覆盖文件或改写历史。
-4. 核对当前分支和 Git 状态。本任务不自动 commit 或 push。
+4. 指定其他基线时使用 `git switch -c <branch-name> <base>`。创建后核对当前分支、HEAD 和 Git 状态，确认原有内容及暂存状态保留。本任务不自动 commit 或 push。
 
 创建完成后输出确认信息。
 
 ## 示例
+
+**用户**：从当前分支创建 `fix/cache-timeout`（有已暂存、未暂存改动和未跟踪文件）
+
+> 直接执行 `git switch -c fix/cache-timeout` 或 `git checkout -b fix/cache-timeout`，不重复确认、不 stash；创建后核对分支和原有 Git 状态。
 
 **用户**：创建一个分支，我要给用户模块加个导出功能
 
